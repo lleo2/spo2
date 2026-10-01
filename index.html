@@ -3,10 +3,10 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>夜间血氧</title>
+<title>健康看板</title>
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-title" content="血氧">
+<meta name="apple-mobile-web-app-title" content="健康">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#eef2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#0e1524" media="(prefers-color-scheme: dark)">
@@ -14,59 +14,103 @@
 <link rel="apple-touch-icon" href="icon-180.png">
 <link rel="icon" href="icon-192.png">
 <style>
-/* Layout: phone-first single column — selected night (stats + chart) on top, night list below. */
+/* Layout: phone-first. Fixed bottom tab bar (今天 / 趋势 / 血氧); each tab is a single column of cards. */
 :root {
   --bg: #eef2f7; --surface: #ffffff; --ink: #16233a; --muted: #5a6680; --line: #d3dae6;
-  --night: #2b4a8b; --night-soft: #dfe7f6; --low: #d2493b; --warn: #b7791f; --ok: #2f855a;
+  --accent: #2b4a8b; --accent-soft: #dfe7f6;
+  --rec-hi: #2f9e6a; --rec-mid: #c99410; --rec-lo: #d2493b;
+  --sleep: #5468c9; --strain: #d9762b; --low: #d2493b;
+  --deep: #3b4fa8; --rem: #8b6fd6; --light: #8fb0f2; --awake: #e7a33c;
   --font: -apple-system, BlinkMacSystemFont, "PingFang SC", "Hiragino Sans GB", "Helvetica Neue", sans-serif;
   --mono: ui-monospace, "SF Mono", Menlo, monospace;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
   :root { --bg: #0e1524; --surface: #172036; --ink: #e5eaf4; --muted: #9aa6bf; --line: #2a3654;
-          --night: #8fb0f2; --night-soft: #1f2d4f; --low: #f07a6c; --warn: #f0b85c; --ok: #6fd39b; color-scheme: dark; }
+          --accent: #8fb0f2; --accent-soft: #1f2d4f;
+          --rec-hi: #5fd29a; --rec-mid: #f0c04d; --rec-lo: #f07a6c;
+          --sleep: #9aa8f2; --strain: #f4a261; --low: #f07a6c;
+          --deep: #6f82e0; --rem: #b49cf2; --light: #a9c3f5; --awake: #f0b85c; color-scheme: dark; }
 }
 * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 [hidden] { display: none !important; }
 html, body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 var(--font); }
-body { padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px); }
-.wrap { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 16px 40px; display: grid; gap: 16px; }
-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-h1 { margin: 0; font-size: 26px; font-weight: 800; letter-spacing: .02em; }
+body { padding-top: env(safe-area-inset-top, 0px); }
+.wrap { max-width: 640px; margin: 0 auto; padding-inline: 16px; padding-block: 14px 110px; display: grid; gap: 14px; }
+header { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+h1 { margin: 0; font-size: 24px; font-weight: 800; }
+h2 { margin: 0; font-size: 17px; }
 .sub { color: var(--muted); font-size: 13px; }
-button { font: inherit; border: 0; border-radius: 10px; padding: 10px 14px; cursor: pointer; }
-.btn { background: var(--night); color: var(--surface); font-weight: 600; }
-.btn.ghost { background: var(--night-soft); color: var(--night); }
-button:focus-visible, select:focus-visible { outline: 2px solid var(--night); outline-offset: 2px; }
-.controls { display: flex; gap: 8px; align-items: center; }
-select { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: 14px; padding: 14px; min-width: 0; }
+button { font: inherit; border: 0; border-radius: 10px; padding: 9px 13px; cursor: pointer; color: inherit; background: none; }
+.btn { background: var(--accent); color: var(--surface); font-weight: 600; }
+.btn.ghost { background: var(--accent-soft); color: var(--accent); }
+button:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.icon-btn { width: 40px; height: 40px; padding: 0; border-radius: 12px; background: var(--accent-soft); color: var(--accent); font-size: 18px; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 16px; padding: 14px; min-width: 0; }
 .center { text-align: center; display: grid; gap: 12px; justify-items: center; padding: 28px 16px; }
-.msg { color: var(--muted); font-size: 14px; }
-.err { color: var(--low); font-size: 14px; white-space: pre-wrap; word-break: break-word; }
-.night-title { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.night-title h2 { margin: 0; font-size: 19px; }
-.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-block: 12px; }
-.stat .k { font-size: 12px; color: var(--muted); }
-.stat .v { font-family: var(--mono); font-size: 20px; font-weight: 600; font-variant-numeric: tabular-nums; }
-.ok { color: var(--ok); } .warn { color: var(--warn); } .low { color: var(--low); }
+.msg { color: var(--muted); font-size: 14px; margin: 0; }
+.err { color: var(--low); font-size: 14px; white-space: pre-wrap; word-break: break-word; margin: 0; }
+
+/* date navigator */
+.datenav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.datenav .d { font-weight: 700; font-size: 17px; text-align: center; flex: 1; }
+.datenav button { width: 40px; height: 40px; padding: 0; font-size: 20px; background: var(--surface); border: 1px solid var(--line); }
+.datenav button:disabled { opacity: .35; cursor: default; }
+
+/* score dials */
+.dials { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.dial { display: grid; justify-items: center; gap: 2px; text-align: center; }
+.dial svg { width: 100%; max-width: 116px; height: auto; display: block; }
+.dial .lbl { font-size: 13px; color: var(--muted); }
+.dial .hint { font-size: 11px; color: var(--muted); min-height: 1.4em; }
+.verdict { font-size: 14px; margin: 10px 2px 0; line-height: 1.6; }
+
+/* metric rows */
+.metrics { display: grid; gap: 0; }
+.metric { display: grid; grid-template-columns: 1fr auto; gap: 2px 10px; align-items: baseline; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.metric:last-child { border-bottom: 0; }
+.metric .k { font-size: 14px; }
+.metric .v { font-family: var(--mono); font-size: 16px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.metric .b { grid-column: 1 / -1; font-size: 12px; color: var(--muted); display: flex; justify-content: space-between; gap: 8px; }
+.up { color: var(--rec-hi); } .down { color: var(--rec-lo); } .flat { color: var(--muted); }
+
+/* charts */
 .chart { position: relative; }
 .chart svg { width: 100%; height: auto; display: block; touch-action: pan-y; }
 .tip { position: absolute; top: 0; transform: translateX(-50%); background: var(--ink); color: var(--bg);
        font-family: var(--mono); font-size: 12px; padding: 3px 7px; border-radius: 6px; pointer-events: none; white-space: nowrap; }
-.episodes { font-size: 13px; color: var(--muted); margin-top: 8px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 12px; color: var(--muted); margin-top: 6px; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; vertical-align: -1px; margin-right: 4px; }
+.card-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+
+/* SpO2 tab */
+.stats { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; margin-block: 10px; }
+.stat .k { font-size: 12px; color: var(--muted); }
+.stat .v { font-family: var(--mono); font-size: 19px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .list { display: grid; gap: 8px; }
 .row { display: grid; grid-template-columns: 1fr auto auto auto; gap: 12px; align-items: center; text-align: left;
-       background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px; color: var(--ink); width: 100%; }
-.row[aria-pressed="true"] { border-color: var(--night); box-shadow: inset 3px 0 0 var(--night); }
+       background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 11px 14px; width: 100%; }
+.row[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); }
 .row .d { font-weight: 600; }
 .row .d small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
 .row .n { font-family: var(--mono); font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; }
 .row .n small { display: block; color: var(--muted); font-size: 11px; font-family: var(--font); }
-.trend svg { width: 100%; height: auto; display: block; }
-.legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted); margin-top: 4px; }
-.legend i { display: inline-block; width: 12px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 4px; }
-.foot { font-size: 12px; color: var(--muted); line-height: 1.6; }
+.ok { color: var(--rec-hi); } .warn { color: var(--rec-mid); } .bad { color: var(--rec-lo); }
+
+/* tab bar */
+.tabbar { position: fixed; left: 0; right: 0; bottom: 0; z-index: 5; background: var(--surface); border-top: 1px solid var(--line);
+          padding-bottom: env(safe-area-inset-bottom, 0px); }
+.tabbar .in { max-width: 640px; margin: 0 auto; display: grid; grid-template-columns: repeat(3, 1fr); }
+.tabbar button { padding: 10px 0 9px; font-size: 13px; color: var(--muted); border-radius: 0; display: grid; justify-items: center; gap: 2px; }
+.tabbar button b { font-size: 18px; line-height: 1; font-weight: 400; }
+.tabbar button[aria-selected="true"] { color: var(--accent); font-weight: 600; }
+
+/* settings sheet */
+.sheet { display: grid; gap: 12px; }
+.field { display: grid; grid-template-columns: 1fr 110px; align-items: center; gap: 10px; font-size: 14px; }
+.field input { font: inherit; font-size: 15px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); width: 100%; }
+.field small { display: block; color: var(--muted); font-size: 12px; }
+.foot { font-size: 12px; color: var(--muted); line-height: 1.6; margin: 0; }
 @media (max-width: 380px) { .stats { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 </style>
 </head>
@@ -74,198 +118,383 @@ select { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 10px;
 <div class="wrap">
   <header>
     <div>
-      <h1>夜间血氧</h1>
-      <div class="sub" id="sub">Fitbit Air · 逐分钟 SpO₂</div>
+      <h1 id="pageTitle">今天</h1>
+      <div class="sub" id="sub">Fitbit Air · Google Health</div>
     </div>
-    <div class="controls" id="controls" hidden>
-      <select id="days" aria-label="显示天数">
-        <option value="7">7 晚</option>
-        <option value="14">14 晚</option>
-        <option value="30">30 晚</option>
-      </select>
-      <button class="btn ghost" id="refresh" type="button">刷新</button>
+    <div style="display:flex;gap:8px">
+      <button class="icon-btn" id="refresh" type="button" aria-label="刷新" hidden>↻</button>
+      <button class="icon-btn" id="gear" type="button" aria-label="设置">⚙︎</button>
     </div>
   </header>
 
+  <section class="card sheet" id="settings" hidden>
+    <h2>设置</h2>
+    <label class="field"><span>年龄<small>用于估算最大心率（负荷计算）</small></span><input id="age" type="number" inputmode="numeric" min="12" max="100" placeholder="例如 40"></label>
+    <label class="field"><span>每晚需要睡眠<small>小时，用于睡眠评分</small></span><input id="need" type="number" inputmode="decimal" min="5" max="11" step="0.5" value="8"></label>
+    <div style="display:flex;gap:8px;justify-content:space-between;flex-wrap:wrap">
+      <button class="btn" id="saveSettings" type="button">保存</button>
+      <button class="btn ghost" id="signout" type="button">退出登录</button>
+    </div>
+  </section>
+
   <section class="card center" id="login" hidden>
-    <p class="msg">登录你的 Google 账号，读取 Fitbit Air 夜间逐分钟血氧。<br>只读权限，数据只在这台手机上显示。</p>
+    <p class="msg" id="loginMsg">登录 Google 账号，读取 Fitbit Air 的睡眠、心率、心率变异性和血氧数据。<br>全部只读，数据只在这台手机上计算和显示。</p>
     <button class="btn" id="signin" type="button">用 Google 登录</button>
   </section>
 
   <section class="card center" id="status" hidden><p class="msg" id="statusText">正在读取……</p></section>
 
-  <section class="card" id="detail" hidden>
-    <div class="night-title"><h2 id="dTitle"></h2><span class="sub" id="dRange"></span></div>
-    <div class="stats">
-      <div class="stat"><div class="k">平均</div><div class="v" id="sAvg"></div></div>
-      <div class="stat"><div class="k" id="sMinK">最低</div><div class="v" id="sMin"></div></div>
-      <div class="stat"><div class="k">&lt;90% 分钟</div><div class="v" id="sLowN"></div></div>
-      <div class="stat"><div class="k">&lt;90% 占比</div><div class="v" id="sLowP"></div></div>
+  <!-- ============ 今天 ============ -->
+  <div id="tab-today" hidden style="display:grid;gap:14px">
+    <div class="datenav">
+      <button type="button" id="prevDay" aria-label="前一天">‹</button>
+      <div class="d" id="dayLabel"></div>
+      <button type="button" id="nextDay" aria-label="后一天">›</button>
     </div>
-    <div class="chart" id="chartBox"><svg id="chart" viewBox="0 0 360 200" role="img" aria-label="当晚逐分钟血氧曲线"></svg><div class="tip" id="tip" hidden></div></div>
-    <div class="episodes" id="episodes"></div>
-  </section>
+    <section class="card">
+      <div class="dials">
+        <div class="dial"><svg id="dialRec" viewBox="0 0 120 120" aria-label="恢复"></svg><div class="lbl">恢复</div><div class="hint" id="hintRec"></div></div>
+        <div class="dial"><svg id="dialSleep" viewBox="0 0 120 120" aria-label="睡眠"></svg><div class="lbl">睡眠</div><div class="hint" id="hintSleep"></div></div>
+        <div class="dial"><svg id="dialStrain" viewBox="0 0 120 120" aria-label="负荷"></svg><div class="lbl">负荷</div><div class="hint" id="hintStrain"></div></div>
+      </div>
+      <p class="verdict" id="verdict"></p>
+    </section>
 
-  <section class="card trend" id="trendCard" hidden>
-    <div class="sub">每晚平均与最低</div>
-    <svg id="trend" viewBox="0 0 360 120" role="img" aria-label="每晚平均与最低血氧趋势"></svg>
-    <div class="legend"><span><i style="background:var(--night)"></i>平均</span><span><i style="background:var(--low)"></i>最低</span><span><i style="background:var(--muted)"></i>90% 参考线</span></div>
-  </section>
+    <section class="card">
+      <div class="card-head"><h2>恢复指标</h2><span class="sub">对比你过去 30 天的基线</span></div>
+      <div class="metrics" id="recMetrics"></div>
+    </section>
 
-  <section class="list" id="list" hidden></section>
+    <section class="card">
+      <div class="card-head"><h2>睡眠</h2><span class="sub" id="sleepRange"></span></div>
+      <div class="chart"><svg id="hypno" viewBox="0 0 360 120" role="img" aria-label="睡眠分期"></svg></div>
+      <div class="legend"><span><i style="background:var(--awake)"></i>清醒</span><span><i style="background:var(--rem)"></i>REM</span><span><i style="background:var(--light)"></i>浅睡</span><span><i style="background:var(--deep)"></i>深睡</span></div>
+      <div class="metrics" id="sleepMetrics" style="margin-top:6px"></div>
+    </section>
 
-  <p class="foot" id="foot" hidden>数据来自 Google Health API（oxygen-saturation），手环只在睡眠时每分钟估算一次，Google 会剔除翻身、佩戴松动等不可靠读数，曲线有空档属正常。仅供个人参考，不能替代医疗诊断。
-  <br><a href="#" id="signout">退出登录</a></p>
+    <section class="card">
+      <div class="card-head"><h2>全天心率</h2><span class="sub" id="hrSummary"></span></div>
+      <div class="chart" id="hrBox"><svg id="hrChart" viewBox="0 0 360 150" role="img" aria-label="全天每分钟心率"></svg><div class="tip" id="hrTip" hidden></div></div>
+      <div class="metrics" id="strainMetrics" style="margin-top:6px"></div>
+    </section>
+  </div>
+
+  <!-- ============ 趋势 ============ -->
+  <div id="tab-trends" hidden style="display:grid;gap:14px">
+    <section class="card"><div class="card-head"><h2>恢复</h2><span class="sub">%</span></div><svg id="tRec" viewBox="0 0 360 130" role="img" aria-label="恢复趋势"></svg></section>
+    <section class="card"><div class="card-head"><h2>睡眠评分与时长</h2><span class="sub">分 · 小时</span></div><svg id="tSleep" viewBox="0 0 360 130" role="img" aria-label="睡眠趋势"></svg>
+      <div class="legend"><span><i style="background:var(--sleep)"></i>睡眠评分</span><span><i style="background:var(--muted)"></i>睡眠时长（小时 ×10）</span></div></section>
+    <section class="card"><div class="card-head"><h2>负荷</h2><span class="sub">0–21</span></div><svg id="tStrain" viewBox="0 0 360 130" role="img" aria-label="负荷趋势"></svg></section>
+    <section class="card"><div class="card-head"><h2>心率变异性</h2><span class="sub">ms，阴影为基线范围</span></div><svg id="tHrv" viewBox="0 0 360 130" role="img" aria-label="心率变异性趋势"></svg></section>
+    <section class="card"><div class="card-head"><h2>静息心率</h2><span class="sub">次/分</span></div><svg id="tRhr" viewBox="0 0 360 130" role="img" aria-label="静息心率趋势"></svg></section>
+  </div>
+
+  <!-- ============ 血氧 ============ -->
+  <div id="tab-spo2" hidden style="display:grid;gap:14px">
+    <section class="card center" id="spo2Status" hidden><p class="msg" id="spo2StatusText"></p></section>
+    <section class="card" id="spo2Detail" hidden>
+      <div class="card-head"><h2 id="sTitle"></h2><span class="sub" id="sRange"></span></div>
+      <div class="stats">
+        <div class="stat"><div class="k">平均</div><div class="v" id="sAvg"></div></div>
+        <div class="stat"><div class="k" id="sMinK">最低</div><div class="v" id="sMin"></div></div>
+        <div class="stat"><div class="k">&lt;90% 分钟</div><div class="v" id="sLowN"></div></div>
+        <div class="stat"><div class="k">&lt;90% 占比</div><div class="v" id="sLowP"></div></div>
+      </div>
+      <div class="chart" id="spo2Box"><svg id="spo2Chart" viewBox="0 0 360 200" role="img" aria-label="逐分钟血氧曲线"></svg><div class="tip" id="spo2Tip" hidden></div></div>
+      <p class="sub" id="episodes" style="margin:8px 0 0"></p>
+    </section>
+    <section class="list" id="spo2List"></section>
+  </div>
+
+  <p class="foot" id="foot" hidden>数据来自 Google Health API。恢复、睡眠、负荷评分是参照 Whoop / Bevel 思路自己设计的算法，只适合看个人趋势，不能当作医疗诊断。</p>
 </div>
+
+<nav class="tabbar" id="tabbar" hidden>
+  <div class="in" role="tablist">
+    <button type="button" role="tab" data-tab="today" aria-selected="true"><b>◎</b>今天</button>
+    <button type="button" role="tab" data-tab="trends" aria-selected="false"><b>∿</b>趋势</button>
+    <button type="button" role="tab" data-tab="spo2" aria-selected="false"><b>O₂</b>血氧</button>
+  </div>
+</nav>
 
 <script>
 (function () {
   'use strict';
+  // ======================= config =======================
   var CLIENT_ID = '1044771979991-i5uu812qkvns0rt79k5m66prgkvboerf.apps.googleusercontent.com';
-  var SCOPE = 'https://www.googleapis.com/auth/googlehealth.health_metrics_and_measurements.readonly';
-  var API = 'https://health.googleapis.com/v4/users/me/dataTypes/oxygen-saturation/dataPoints';
-  var LOW = 90, NIGHT_START = 18;
+  var G = 'https://www.googleapis.com/auth/googlehealth.';
+  var SCOPES = [G + 'health_metrics_and_measurements.readonly', G + 'sleep.readonly', G + 'activity_and_fitness.readonly'];
+  var BASE = 'https://health.googleapis.com/v4/users/me/dataTypes/';
+  var DAYS = 37;                 // 30-day baseline + a week to show
   var REDIRECT = location.origin + location.pathname;
   var $ = function (id) { return document.getElementById(id); };
+  var WD = '日一二三四五六';
 
-  // ---------- storage (best effort) ----------
+  // ======================= storage =======================
   function sget(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
   function sset(k, v) { try { localStorage.setItem(k, v); } catch (e) {} }
   function sdel(k) { try { localStorage.removeItem(k); } catch (e) {} }
 
-  // ---------- auth (OAuth 2.0 implicit flow, redirect) ----------
+  // ======================= auth =======================
   function signIn() {
     var state = Math.random().toString(36).slice(2) + Date.now().toString(36);
-    sset('spo2_state', state);
-    var p = new URLSearchParams({
-      client_id: CLIENT_ID, redirect_uri: REDIRECT, response_type: 'token',
-      scope: SCOPE, include_granted_scopes: 'true', state: state
-    });
+    sset('hb_state', state);
+    var p = new URLSearchParams({ client_id: CLIENT_ID, redirect_uri: REDIRECT, response_type: 'token',
+      scope: SCOPES.join(' '), include_granted_scopes: 'true', state: state });
     location.assign('https://accounts.google.com/o/oauth2/v2/auth?' + p.toString());
   }
   function readHash() {
-    if (!location.hash || location.hash.length < 2) return;
+    if (!location.hash || location.hash.length < 2) return true;
     var h = new URLSearchParams(location.hash.slice(1));
     history.replaceState(null, '', REDIRECT);
-    if (h.get('error')) { showError('登录未完成：' + h.get('error')); return; }
+    if (h.get('error')) { showError('登录未完成：' + h.get('error')); return false; }
     var tok = h.get('access_token');
-    if (!tok) return;
-    if (h.get('state') !== sget('spo2_state')) { showError('登录校验失败，请重试。'); return; }
-    sdel('spo2_state');
-    var exp = Date.now() + (parseInt(h.get('expires_in') || '3600', 10) - 60) * 1000;
-    sset('spo2_token', tok); sset('spo2_exp', String(exp));
+    if (!tok) return true;
+    if (h.get('state') !== sget('hb_state')) { showError('登录校验失败，请重试。'); return false; }
+    sdel('hb_state');
+    sset('hb_token', tok);
+    sset('hb_exp', String(Date.now() + (parseInt(h.get('expires_in') || '3600', 10) - 60) * 1000));
+    sset('hb_scope', h.get('scope') || '');
+    return true;
   }
   function token() {
-    var t = sget('spo2_token'), e = parseInt(sget('spo2_exp') || '0', 10);
-    return (t && Date.now() < e) ? t : null;
+    var t = sget('hb_token'), e = parseInt(sget('hb_exp') || '0', 10);
+    if (!t || Date.now() >= e) return null;
+    var granted = sget('hb_scope') || '';
+    if (granted && SCOPES.some(function (s) { return granted.indexOf(s) < 0; })) return null;
+    return t;
   }
-  function signOut() { sdel('spo2_token'); sdel('spo2_exp'); showLogin(); }
+  function signOut() { sdel('hb_token'); sdel('hb_exp'); sdel('hb_scope'); showLogin(); }
 
-  // ---------- UI states ----------
-  function hideAll() { ['login', 'status', 'detail', 'trendCard', 'list', 'foot'].forEach(function (id) { $(id).hidden = true; }); }
-  function showLogin() { hideAll(); $('controls').hidden = true; $('login').hidden = false; }
-  function showStatus(t) { hideAll(); $('status').hidden = false; $('statusText').className = 'msg'; $('statusText').textContent = t; }
-  function showError(t) { hideAll(); $('status').hidden = false; $('statusText').className = 'err'; $('statusText').textContent = t; }
+  // ======================= UI states =======================
+  var TABS = ['today', 'trends', 'spo2'];
+  var currentTab = 'today';
+  function hideMain() {
+    ['login', 'status', 'foot', 'tabbar'].forEach(function (id) { $(id).hidden = true; });
+    TABS.forEach(function (t) { $('tab-' + t).hidden = true; });
+  }
+  function showLogin(msg) {
+    hideMain(); $('refresh').hidden = true; $('login').hidden = false;
+    if (msg) $('loginMsg').textContent = msg;
+  }
+  function showStatus(t) { hideMain(); $('status').hidden = false; $('statusText').className = 'msg'; $('statusText').textContent = t; }
+  function showError(t) { hideMain(); $('status').hidden = false; $('statusText').className = 'err'; $('statusText').textContent = t; }
+  function showTab(t) {
+    currentTab = t;
+    TABS.forEach(function (x) { $('tab-' + x).hidden = x !== t; });
+    Array.prototype.forEach.call(document.querySelectorAll('.tabbar button'), function (b) {
+      b.setAttribute('aria-selected', b.dataset.tab === t ? 'true' : 'false');
+    });
+    $('pageTitle').textContent = { today: '今天', trends: '趋势', spo2: '血氧' }[t];
+    sset('hb_tab', t);
+    if (t === 'trends') drawTrends();
+    if (t === 'spo2') loadSpo2();
+    window.scrollTo(0, 0);
+  }
 
-  // ---------- data ----------
+  // ======================= helpers =======================
   function pad(n) { return String(n).padStart(2, '0'); }
-  function civil(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; }
+  function ymd(d) { return d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()); }
+  function dateKey(o) { return o.year + '-' + pad(o.month) + '-' + pad(o.day); }
+  function addDays(key, n) { var d = new Date(key + 'T12:00:00'); d.setDate(d.getDate() + n); return ymd(d); }
+  function dayLabel(key) { var d = new Date(key + 'T12:00:00'); return (d.getMonth() + 1) + '月' + d.getDate() + '日 周' + WD[d.getDay()]; }
+  function shortDay(key) { var d = new Date(key + 'T12:00:00'); return (d.getMonth() + 1) + '/' + d.getDate(); }
+  function num(v) { var n = typeof v === 'string' ? parseFloat(v) : v; return isFinite(n) ? n : null; }
+  function offSec(s) { return parseInt(String(s || '0s').replace('s', ''), 10) || 0; }
+  // "local minute": minutes since epoch of the local wall-clock time (UTC-encoded), so getUTC* gives local fields
+  function localMin(iso, offset) { var t = Date.parse(iso); return Math.floor((t + (offset != null ? offSec(offset) * 1000 : -new Date(t).getTimezoneOffset() * 60000)) / 60000); }
+  function lmKey(m) { var d = new Date(m * 60000); return d.getUTCFullYear() + '-' + pad(d.getUTCMonth() + 1) + '-' + pad(d.getUTCDate()); }
+  function hm(m) { var d = new Date(m * 60000); return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()); }
+  function fmtDur(min) { var h = Math.floor(min / 60), m = Math.round(min % 60); if (m === 60) { h++; m = 0; } return h + '小时' + (m ? pad(m) + '分' : ''); }
+  function mean(a) { return a.reduce(function (x, y) { return x + y; }, 0) / a.length; }
+  function sd(a) { var m = mean(a); return Math.sqrt(mean(a.map(function (x) { return (x - m) * (x - m); }))); }
+  function clamp(x, a, b) { return Math.max(a, Math.min(b, x)); }
+  function firstNum(obj) { if (!obj) return null; for (var k in obj) { var v = num(obj[k]); if (v != null) return v; } return null; }
 
-  async function fetchAll(tok, start, end) {
-    var filter = 'oxygen_saturation.sample_time.civil_time >= "' + civil(start) + '" AND oxygen_saturation.sample_time.civil_time < "' + civil(end) + '"';
-    var out = [], pageToken = '';
-    for (var guard = 0; guard < 50; guard++) {
-      var p = new URLSearchParams({ filter: filter, pageSize: '10000' });
-      if (pageToken) p.set('pageToken', pageToken);
-      var r;
-      try {
-        r = await fetch(API + '?' + p.toString(), { headers: { Authorization: 'Bearer ' + tok, Accept: 'application/json' } });
-      } catch (e) {
-        throw new Error('网络请求失败，请检查网络后重试。（' + e.message + '）');
-      }
-      if (r.status === 401) { var err = new Error('auth'); err.auth = true; throw err; }
-      var body = await r.json().catch(function () { return {}; });
-      if (!r.ok) {
-        var m = (body.error && body.error.message) || ('HTTP ' + r.status);
-        throw new Error('Google Health API 返回错误：' + m);
-      }
-      out = out.concat(body.dataPoints || []);
-      pageToken = body.nextPageToken || '';
-      if (!pageToken) break;
+  // ======================= API =======================
+  function AuthError() { this.auth = true; }
+  async function call(url, opts) {
+    var tok = token(); if (!tok) throw new AuthError();
+    opts = opts || {};
+    opts.headers = Object.assign({ Authorization: 'Bearer ' + tok, Accept: 'application/json' }, opts.headers || {});
+    var r;
+    try { r = await fetch(url, opts); } catch (e) { throw new Error('网络请求失败，请检查网络后重试。'); }
+    if (r.status === 401) throw new AuthError();
+    var body = await r.json().catch(function () { return {}; });
+    if (r.status === 403 && /scope/i.test((body.error && body.error.message) || '')) throw new AuthError();
+    if (!r.ok) throw new Error('Google Health API 错误（' + r.status + '）：' + ((body.error && body.error.message) || ''));
+    return body;
+  }
+  async function list(type, filter, pageSize) {
+    var out = [], pt = '';
+    for (var i = 0; i < 40; i++) {
+      var p = new URLSearchParams({ filter: filter, pageSize: String(pageSize) });
+      if (pt) p.set('pageToken', pt);
+      var b = await call(BASE + type + '/dataPoints?' + p.toString());
+      out = out.concat(b.dataPoints || []);
+      pt = b.nextPageToken || ''; if (!pt) break;
     }
     return out;
   }
+  async function post(type, method, body) {
+    var out = [], pt = '';
+    for (var i = 0; i < 40; i++) {
+      var b2 = Object.assign({}, body); if (pt) b2.pageToken = pt;
+      var b = await call(BASE + type + '/dataPoints:' + method, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b2) });
+      out = out.concat(b.rollupDataPoints || []);
+      pt = b.nextPageToken || ''; if (!pt) break;
+    }
+    return out;
+  }
+  function civilDate(key) { var p = key.split('-'); return { year: +p[0], month: +p[1], day: +p[2] }; }
 
-  function parse(points) {
-    var map = new Map();
+  // ======================= data model =======================
+  var D = null; // { days: [keys], hrv:{}, rhr:{}, resp:{}, sleep:{key:session}, steps:{}, hr:{key:[{m,v}]}, hrMax30 }
+
+  async function loadAll() {
+    var today = ymd(new Date());
+    var from = addDays(today, -DAYS);
+    var fromDate = from;
+    var setP = function (t) { $('statusText').textContent = t; };
+    var res = {};
+    setP('读取心率变异性、静息心率、呼吸频率……');
+    var lists = await Promise.all([
+      list('daily-heart-rate-variability', 'daily_heart_rate_variability.date >= "' + fromDate + '"', 100),
+      list('daily-resting-heart-rate', 'daily_resting_heart_rate.date >= "' + fromDate + '"', 100),
+      list('daily-respiratory-rate', 'daily_respiratory_rate.date >= "' + fromDate + '"', 100),
+      list('sleep', 'sleep.interval.civil_end_time >= "' + fromDate + '"', 25)
+    ]);
+    res.hrv = {}; lists[0].forEach(function (p) { var o = p.dailyHeartRateVariability; if (o && o.date) { var v = num(o.averageHeartRateVariabilityMilliseconds); if (v) res.hrv[dateKey(o.date)] = v; } });
+    res.rhr = {}; lists[1].forEach(function (p) { var o = p.dailyRestingHeartRate; if (o && o.date) { var v = num(o.beatsPerMinute); if (v) res.rhr[dateKey(o.date)] = v; } });
+    res.resp = {}; lists[2].forEach(function (p) {
+      var o = p.dailyRespiratoryRate; if (!o || !o.date) return;
+      var v = num(o.breathsPerMinute);
+      if (v == null && o.values && o.values.length) v = firstNum(o.values[0]);
+      if (v) res.resp[dateKey(o.date)] = v;
+    });
+    res.sleep = parseSleep(lists[3]);
+
+    setP('读取步数……');
+    res.steps = {};
+    try {
+      var steps = await post('steps', 'dailyRollUp', { range: { start: { date: civilDate(fromDate), time: { hours: 0 } }, end: { date: civilDate(addDays(today, 1)), time: { hours: 0 } } }, pageSize: 100 });
+      steps.forEach(function (p) { if (p.civilStartTime && p.civilStartTime.date) { var v = firstNum(p.steps); if (v != null) res.steps[dateKey(p.civilStartTime.date)] = v; } });
+    } catch (e) { if (e.auth) throw e; }
+
+    // minute heart rate, 14-day chunks (API limit)
+    res.hr = {};
+    var end = new Date(), start = new Date(fromDate + 'T00:00:00');
+    var chunks = [];
+    for (var t = start.getTime(); t < end.getTime(); t += 13 * 86400000) chunks.push([t, Math.min(end.getTime(), t + 13 * 86400000)]);
+    for (var i = 0; i < chunks.length; i++) {
+      setP('读取每分钟心率（' + (i + 1) + '/' + chunks.length + '）……');
+      var pts = await post('heart-rate', 'rollUp', { range: { startTime: new Date(chunks[i][0]).toISOString(), endTime: new Date(chunks[i][1]).toISOString() }, windowSize: '60s', pageSize: 10000 });
+      pts.forEach(function (p) {
+        var v = p.heartRate || p.value && p.value.heartRate; if (!v) return;
+        var bpm = num(v.beatsPerMinuteAvg); if (!bpm) return;
+        var m = localMin(p.startTime, null), k = lmKey(m);
+        (res.hr[k] = res.hr[k] || []).push({ m: m, v: bpm });
+      });
+    }
+    Object.keys(res.hr).forEach(function (k) {
+      var seen = {}; res.hr[k] = res.hr[k].filter(function (x) { if (seen[x.m]) return false; seen[x.m] = 1; return true; }).sort(function (a, b) { return a.m - b.m; });
+    });
+    res.today = today;
+    res.days = [];
+    for (var k2 = fromDate; k2 <= today; k2 = addDays(k2, 1)) res.days.push(k2);
+    return res;
+  }
+
+  function parseSleep(points) {
+    var byDay = {};
     points.forEach(function (p) {
-      var o = p.oxygenSaturation; if (!o || !o.sampleTime || o.percentage == null) return;
-      var off = parseInt(String(o.sampleTime.utcOffset || '0s').replace('s', ''), 10) || 0;
-      var t = new Date(Date.parse(o.sampleTime.physicalTime) + off * 1000); // UTC fields now hold local wall time
-      var key = Math.floor(t.getTime() / 60000);
-      map.set(key, +o.percentage);
+      var s = p.sleep; if (!s) return;
+      var iv = s.interval || s;
+      var st = iv.startTime, en = iv.endTime; if (!st || !en) return;
+      var so = iv.startUtcOffset || iv.utcOffset, eo = iv.endUtcOffset || iv.utcOffset;
+      var a = localMin(st, so != null ? so : null), b = localMin(en, eo != null ? eo : null);
+      var off = so != null ? so : null;
+      var stages = (s.stages || s.sleepStages || []).map(function (g) {
+        var gi = g.interval || g;
+        var t = String(g.type || g.stage || g.sleepStageType || '').toUpperCase();
+        if (!gi.startTime || !gi.endTime) return null;
+        return { a: localMin(gi.startTime, gi.startUtcOffset || off), b: localMin(gi.endTime, gi.endUtcOffset || off), t: t };
+      }).filter(Boolean).sort(function (x, y) { return x.a - y.a; });
+      var mins = { AWAKE: 0, LIGHT: 0, DEEP: 0, REM: 0, ASLEEP: 0, RESTLESS: 0 };
+      stages.forEach(function (g) { if (mins[g.t] != null) mins[g.t] += Math.max(0, g.b - g.a); });
+      var inBed = b - a;
+      var asleep = mins.LIGHT + mins.DEEP + mins.REM + mins.ASLEEP + mins.RESTLESS;
+      if (!stages.length) {
+        var sum = s.summary || {};
+        asleep = num(sum.minutesAsleep) || num(sum.asleepMinutes) || inBed;
+      }
+      var hasStages = (mins.DEEP + mins.REM + mins.LIGHT) > 0;
+      var rec = { a: a, b: b, inBed: inBed, asleep: asleep, mins: mins, stages: stages, hasStages: hasStages };
+      var k = lmKey(b);   // attribute sleep to the day you wake up
+      if (!byDay[k] || byDay[k].asleep < rec.asleep) byDay[k] = rec;
     });
-    return Array.from(map.entries()).sort(function (a, b) { return a[0] - b[0]; })
-      .map(function (e) { return { m: e[0], v: e[1] }; }); // m = local wall-clock minutes since epoch (UTC-encoded)
+    return byDay;
   }
 
-  // Split readings into recording sessions: a gap of more than 3 hours starts a new session.
-  // (Fitbit Air can record SpO2 outside night sleep too, so a fixed "night window" mislabels data.)
-  var SESSION_GAP = 180;
-  function groupNights(samples) {
-    var sessions = [], cur = [];
-    samples.forEach(function (s) {
-      if (cur.length && s.m - cur[cur.length - 1].m > SESSION_GAP) { sessions.push(cur); cur = []; }
-      cur.push(s);
+  // ======================= scores =======================
+  function settings() {
+    var age = num(sget('hb_age')); var need = num(sget('hb_need')) || 8;
+    return { age: age, need: need, hrMax: age ? Math.round(208 - 0.7 * age) : 185 };
+  }
+  function baseline(map, key, n) {
+    var vals = [];
+    for (var i = 1; i <= 30; i++) { var v = map[addDays(key, -i)]; if (v != null) vals.push(v); }
+    if (vals.length < (n || 5)) return null;
+    return { mean: mean(vals), sd: sd(vals), n: vals.length };
+  }
+  function recovery(key) {
+    var hrv = D.hrv[key], rhr = D.rhr[key], rsp = D.resp[key];
+    var bH = baseline(D.hrv, key), bR = baseline(D.rhr, key), bP = baseline(D.resp, key);
+    if (hrv == null || rhr == null) return { score: null, why: hrv == null ? '缺少昨晚心率变异性' : '缺少静息心率' };
+    if (!bH || !bR) {
+      var have = Math.min(bH ? bH.n : countPrev(D.hrv, key), bR ? bR.n : countPrev(D.rhr, key));
+      return { score: null, why: '建立基线中（' + have + '/5 天）' };
+    }
+    var lnH = Math.log(hrv), lnVals = [];
+    for (var i = 1; i <= 30; i++) { var v = D.hrv[addDays(key, -i)]; if (v != null) lnVals.push(Math.log(v)); }
+    var zH = (lnH - mean(lnVals)) / Math.max(sd(lnVals), 0.06);
+    var zR = (rhr - bR.mean) / Math.max(bR.sd, 1.5);
+    var w = { h: 0.6, r: 0.3, p: 0.1 }, z = w.h * zH - w.r * zR, wsum = w.h + w.r;
+    if (rsp != null && bP) { z -= w.p * (rsp - bP.mean) / Math.max(bP.sd, 0.3); wsum += w.p; }
+    z = z / wsum;
+    var score = Math.round(100 / (1 + Math.exp(-(1.4 * z + 0.5))));
+    return { score: clamp(score, 1, 99), z: z };
+  }
+  function countPrev(map, key) { var c = 0; for (var i = 1; i <= 30; i++) if (map[addDays(key, -i)] != null) c++; return c; }
+  function sleepScore(key) {
+    var s = D.sleep[key]; if (!s) return { score: null, why: '没有睡眠记录' };
+    var need = settings().need * 60;
+    var dur = clamp(s.asleep / need, 0, 1) * 50;
+    var eff = s.inBed > 0 ? s.asleep / s.inBed : 0;
+    var effPts = clamp((eff - 0.75) / 0.2, 0, 1) * 20;
+    var deepPts, remPts;
+    if (s.hasStages && s.asleep > 0) {
+      deepPts = clamp((s.mins.DEEP / s.asleep) / 0.16, 0, 1) * 15;
+      remPts = clamp((s.mins.REM / s.asleep) / 0.21, 0, 1) * 15;
+    } else { deepPts = remPts = 0.6 * 15; }
+    return { score: Math.round(dur + effPts + deepPts + remPts), eff: eff, s: s };
+  }
+  function strain(key) {
+    var arr = D.hr[key]; if (!arr || arr.length < 60) return { score: null, why: '心率数据不足' };
+    var st = settings(), rest = D.rhr[key] || (baseline(D.rhr, key, 1) || {}).mean || 60, max = st.hrMax;
+    var trimp = 0, zone = [0, 0, 0, 0];   // minutes in HRR bands: 30–50, 50–70, 70–85, 85+
+    arr.forEach(function (x) {
+      var r = (x.v - rest) / (max - rest);
+      if (r < 0.3) return;
+      r = Math.min(r, 1);
+      trimp += r * 0.64 * Math.exp(1.92 * r);
+      zone[r < 0.5 ? 0 : r < 0.7 ? 1 : r < 0.85 ? 2 : 3]++;
     });
-    if (cur.length) sessions.push(cur);
-    return sessions.filter(function (rows) { return rows.length >= 10; })
-      .map(function (rows) { return summarize(String(rows[0].m), rows); })
-      .sort(function (a, b) { return b.first - a.first; });
+    var score = 21 * (1 - Math.exp(-trimp / 140));
+    return { score: Math.round(score * 10) / 10, trimp: trimp, zone: zone, rest: rest, max: max, minutes: arr.length };
   }
 
-  function summarize(key, rows) {
-    var vals = rows.map(function (r) { return r.v; });
-    var sum = vals.reduce(function (a, b) { return a + b; }, 0);
-    var minRow = rows.reduce(function (a, b) { return b.v < a.v ? b : a; });
-    var low = rows.filter(function (r) { return r.v < LOW; });
-    var eps = [], cur = [];
-    low.forEach(function (r) {
-      if (cur.length && r.m - cur[cur.length - 1].m > 3) { eps.push(cur); cur = []; }
-      cur.push(r);
-    });
-    if (cur.length) eps.push(cur);
-    return {
-      key: key, rows: rows, n: rows.length,
-      avg: sum / rows.length, min: minRow.v, minAt: minRow.m, max: Math.max.apply(null, vals),
-      lowN: low.length, lowP: 100 * low.length / rows.length,
-      first: rows[0].m, last: rows[rows.length - 1].m,
-      eps: eps.map(function (e) { return { s: e[0].m, e: e[e.length - 1].m, min: Math.min.apply(null, e.map(function (r) { return r.v; })), n: e.length }; })
-    };
-  }
-
-  // ---------- formatting ----------
-  var WD = '日一二三四五六';
-  function hm(m) { var d = new Date(m * 60000); return pad(d.getUTCHours()) + ':' + pad(d.getUTCMinutes()); }
-  function dayOf(m) { var d = new Date(m * 60000); return (d.getUTCMonth() + 1) + '月' + d.getUTCDate() + '日'; }
-  function wdOf(m) { return '周' + WD[new Date(m * 60000).getUTCDay()]; }
-  function sameDay(a, b) { return Math.floor(a / 1440) === Math.floor(b / 1440); }
-  // Title for a session: night sessions (starting 18:00 or later) are "x日晚"; others show the start day.
-  function sessionLabel(n) {
-    var h = new Date(n.first * 60000).getUTCHours();
-    return dayOf(n.first) + ' ' + wdOf(n.first) + (h >= 18 ? ' 晚' : '');
-  }
-  function rangeLabel(n) {
-    return hm(n.first) + '–' + (sameDay(n.first, n.last) ? '' : '次日 ') + hm(n.last);
-  }
-  function cls(v, kind) {
-    if (kind === 'avg') return v >= 95 ? 'ok' : v >= 92 ? 'warn' : 'low';
-    if (kind === 'min') return v >= LOW ? 'ok' : v >= 85 ? 'warn' : 'low';
-    return v < 1 ? 'ok' : v < 5 ? 'warn' : 'low';
-  }
-  function setV(id, text, c) { var el = $(id); el.textContent = text; el.className = 'v ' + (c || ''); }
-
-  // ---------- SVG helpers ----------
+  // ======================= drawing primitives =======================
   var NS = 'http://www.w3.org/2000/svg';
   function mk(svg, name, attrs, text) {
     var e = document.createElementNS(NS, name);
@@ -273,12 +502,275 @@ select { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 10px;
     if (text != null) e.textContent = text;
     svg.appendChild(e); return e;
   }
+  function recColor(s) { return s == null ? 'var(--line)' : s >= 67 ? 'var(--rec-hi)' : s >= 34 ? 'var(--rec-mid)' : 'var(--rec-lo)'; }
+  function dial(svg, frac, color, big, small) {
+    svg.innerHTML = '';
+    var r = 48, c = 2 * Math.PI * r;
+    mk(svg, 'circle', { cx: 60, cy: 60, r: r, fill: 'none', stroke: 'var(--line)', 'stroke-width': 10 });
+    if (frac != null) mk(svg, 'circle', { cx: 60, cy: 60, r: r, fill: 'none', stroke: color, 'stroke-width': 10, 'stroke-linecap': 'round',
+      'stroke-dasharray': (c * clamp(frac, 0.01, 1)).toFixed(1) + ' ' + c.toFixed(1), transform: 'rotate(-90 60 60)' });
+    mk(svg, 'text', { x: 60, y: small ? 62 : 70, 'text-anchor': 'middle', 'font-size': big.length > 3 ? 24 : 30, 'font-weight': 700, fill: frac == null ? 'var(--muted)' : 'var(--ink)', 'font-family': 'ui-monospace, SF Mono, Menlo, monospace' }, big);
+    if (small) mk(svg, 'text', { x: 60, y: 82, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--muted)' }, small);
+  }
+  function metricRow(box, k, v, base, dir, note) {
+    var row = document.createElement('div'); row.className = 'metric';
+    var kEl = document.createElement('div'); kEl.className = 'k'; kEl.textContent = k;
+    var vEl = document.createElement('div'); vEl.className = 'v'; vEl.textContent = v;
+    var bEl = document.createElement('div'); bEl.className = 'b';
+    var l = document.createElement('span'); l.textContent = base || '';
+    var r = document.createElement('span'); r.textContent = note || ''; if (dir) r.className = dir;
+    bEl.appendChild(l); bEl.appendChild(r);
+    row.appendChild(kEl); row.appendChild(vEl); row.appendChild(bEl); box.appendChild(row);
+  }
 
-  // ---------- night chart ----------
-  var current = null;
-  function drawNight(n) {
-    current = n;
-    var svg = $('chart'); svg.innerHTML = '';
+  // ======================= today =======================
+  var selDay = null;
+  function drawToday() {
+    var key = selDay;
+    $('dayLabel').textContent = (key === D.today ? '今天 · ' : '') + dayLabel(key);
+    $('prevDay').disabled = key <= D.days[7];
+    $('nextDay').disabled = key >= D.today;
+
+    var rec = recovery(key), sl = sleepScore(key), stn = strain(key);
+    dial($('dialRec'), rec.score == null ? null : rec.score / 100, recColor(rec.score), rec.score == null ? '—' : rec.score + '%');
+    $('hintRec').textContent = rec.score == null ? rec.why : rec.score >= 67 ? '状态好' : rec.score >= 34 ? '一般' : '需要恢复';
+    dial($('dialSleep'), sl.score == null ? null : sl.score / 100, 'var(--sleep)', sl.score == null ? '—' : String(sl.score), sl.score == null ? '' : '/100');
+    $('hintSleep').textContent = sl.score == null ? sl.why : fmtDur(sl.s.asleep);
+    dial($('dialStrain'), stn.score == null ? null : stn.score / 21, 'var(--strain)', stn.score == null ? '—' : stn.score.toFixed(1), stn.score == null ? '' : '/21');
+    $('hintStrain').textContent = stn.score == null ? stn.why : stn.score < 7 ? '轻松' : stn.score < 14 ? '中等' : stn.score < 18 ? '较高' : '很高';
+    $('verdict').textContent = verdict(rec, sl, stn, key);
+
+    // recovery metrics
+    var box = $('recMetrics'); box.innerHTML = '';
+    var cmp = function (val, b, unit, higherBetter, digits) {
+      if (val == null) return ['—', b ? '基线 ' + b.mean.toFixed(digits) + unit : '基线不足', '', ''];
+      var vs = val.toFixed(digits) + unit;
+      if (!b) return [vs, '基线不足（' + countPrevAny(unit) + '）', '', ''];
+      var diff = val - b.mean, pct = diff / b.mean * 100;
+      var good = higherBetter ? diff > 0 : diff < 0;
+      var dir = Math.abs(diff) < Math.max(b.sd * 0.5, Math.abs(b.mean) * 0.02) ? 'flat' : good ? 'up' : 'down';
+      var note = (diff >= 0 ? '+' : '') + diff.toFixed(digits) + unit + '（' + (pct >= 0 ? '+' : '') + pct.toFixed(0) + '%）';
+      return [vs, '基线 ' + b.mean.toFixed(digits) + unit, dir, note];
+    };
+    function countPrevAny() { return '需 5 天'; }
+    var a = cmp(D.hrv[key], baseline(D.hrv, key), ' ms', true, 0); metricRow(box, '心率变异性 HRV', a[0], a[1], a[2], a[3]);
+    a = cmp(D.rhr[key], baseline(D.rhr, key), ' 次/分', false, 0); metricRow(box, '静息心率', a[0], a[1], a[2], a[3]);
+    a = cmp(D.resp[key], baseline(D.resp, key), ' 次/分', false, 1); metricRow(box, '睡眠呼吸频率', a[0], a[1], a[2], a[3]);
+
+    // sleep
+    drawHypno(D.sleep[key]);
+    var sm = $('sleepMetrics'); sm.innerHTML = '';
+    if (sl.score != null) {
+      var s = sl.s, need = settings().need * 60;
+      $('sleepRange').textContent = hm(s.a) + ' – ' + hm(s.b);
+      metricRow(sm, '实际睡眠', fmtDur(s.asleep), '需要 ' + fmtDur(need), s.asleep >= need * 0.95 ? 'up' : s.asleep < need * 0.8 ? 'down' : 'flat', Math.round(s.asleep / need * 100) + '%');
+      metricRow(sm, '睡眠效率', Math.round(sl.eff * 100) + '%', '在床 ' + fmtDur(s.inBed), sl.eff >= 0.85 ? 'up' : sl.eff < 0.75 ? 'down' : 'flat', '');
+      if (s.hasStages) {
+        metricRow(sm, '深睡', fmtDur(s.mins.DEEP), '目标 ≥16%', s.mins.DEEP / s.asleep >= 0.16 ? 'up' : 'flat', Math.round(s.mins.DEEP / s.asleep * 100) + '%');
+        metricRow(sm, 'REM', fmtDur(s.mins.REM), '目标 ≥21%', s.mins.REM / s.asleep >= 0.21 ? 'up' : 'flat', Math.round(s.mins.REM / s.asleep * 100) + '%');
+        metricRow(sm, '夜间清醒', fmtDur(s.mins.AWAKE), '', '', '');
+      }
+    } else { $('sleepRange').textContent = ''; }
+
+    // heart rate + strain
+    drawHr(key, stn);
+    var stm = $('strainMetrics'); stm.innerHTML = '';
+    if (stn.score != null) {
+      $('hrSummary').textContent = '静息 ' + Math.round(stn.rest) + ' · 最大心率设定 ' + stn.max;
+      var zl = ['30–50% 储备', '50–70% 储备', '70–85% 储备', '85%+ 储备'];
+      var zn = ['低强度', '中强度', '高强度', '极高强度'];
+      for (var i = 0; i < 4; i++) if (stn.zone[i]) metricRow(stm, zn[i], stn.zone[i] + ' 分钟', zl[i], '', '');
+      metricRow(stm, '训练冲量 TRIMP', Math.round(stn.trimp) + '', '负荷 = 21 × (1 − e^(−TRIMP/140))', '', '');
+    } else { $('hrSummary').textContent = ''; }
+    if (D.steps[key] != null) metricRow(stm, '步数', Math.round(D.steps[key]).toLocaleString('zh-CN'), '', '', '');
+  }
+  function verdict(rec, sl, stn, key) {
+    if (rec.score == null && sl.score == null && stn.score == null) return '这一天没有 Fitbit Air 数据。戴着睡觉并在早上同步后，这里会显示当天的评分。';
+    var parts = [];
+    if (rec.score != null) parts.push(rec.score >= 67 ? '身体恢复得不错，今天可以安排较高强度的训练。' : rec.score >= 34 ? '恢复一般，适合中等强度，注意别累积疲劳。' : '恢复偏低，今天以休息、轻松活动为主。');
+    if (sl.score != null && sl.s.asleep < settings().need * 60 * 0.8) parts.push('昨晚睡得偏少，今晚尽量早点睡。');
+    if (stn.score != null && stn.score >= 14 && key === D.today) parts.push('今天负荷已经不低，晚上注意放松。');
+    return parts.join(' ') || '数据还不完整，先看看下面的明细。';
+  }
+  function drawHypno(s) {
+    var svg = $('hypno'); svg.innerHTML = '';
+    var W = 360, H = 120, L = 40, R = 10, T = 6, B = 20;
+    if (!s) { mk(svg, 'text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--muted)' }, '没有睡眠记录'); return; }
+    var rows = { AWAKE: 0, RESTLESS: 0, REM: 1, LIGHT: 2, ASLEEP: 2, DEEP: 3 };
+    var col = { AWAKE: 'var(--awake)', RESTLESS: 'var(--awake)', REM: 'var(--rem)', LIGHT: 'var(--light)', ASLEEP: 'var(--light)', DEEP: 'var(--deep)' };
+    var names = ['清醒', 'REM', '浅睡', '深睡'];
+    var rh = (H - T - B) / 4;
+    var sx = function (m) { return L + (m - s.a) / Math.max(1, s.b - s.a) * (W - L - R); };
+    names.forEach(function (n, i) {
+      mk(svg, 'text', { x: L - 6, y: T + rh * i + rh / 2 + 4, 'text-anchor': 'end', 'font-size': 10, fill: 'var(--muted)' }, n);
+      mk(svg, 'line', { x1: L, x2: W - R, y1: T + rh * (i + 1), y2: T + rh * (i + 1), stroke: 'var(--line)', 'stroke-width': 0.5 });
+    });
+    if (!s.stages.length) {
+      mk(svg, 'rect', { x: sx(s.a), y: T + rh * 2 + 3, width: sx(s.b) - sx(s.a), height: rh - 6, rx: 3, fill: 'var(--light)' });
+    }
+    s.stages.forEach(function (g) {
+      var row = rows[g.t]; if (row == null) return;
+      mk(svg, 'rect', { x: sx(g.a), y: T + rh * row + 3, width: Math.max(1, sx(g.b) - sx(g.a)), height: rh - 6, rx: 2, fill: col[g.t] });
+    });
+    var span = s.b - s.a, step = span > 600 ? 120 : 60;
+    var first = Math.ceil(s.a / step) * step;
+    for (var t = first; t <= s.b; t += step) mk(svg, 'text', { x: sx(t), y: H - 5, 'text-anchor': 'middle', 'font-size': 10, fill: 'var(--muted)' }, hm(t));
+  }
+  function drawHr(key, stn) {
+    var svg = $('hrChart'); svg.innerHTML = '';
+    var W = 360, H = 150, L = 30, R = 10, T = 8, B = 20;
+    var arr = D.hr[key] || [];
+    if (!arr.length) { mk(svg, 'text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--muted)' }, '这一天没有心率数据'); return; }
+    var day0 = Math.floor(arr[0].m / 1440) * 1440, x0 = day0, x1 = day0 + 1440;
+    var vmax = Math.max(120, Math.ceil(Math.max.apply(null, arr.map(function (x) { return x.v; })) / 10) * 10), vmin = 40;
+    var sx = function (m) { return L + (m - x0) / (x1 - x0) * (W - L - R); };
+    var sy = function (v) { return T + (vmax - v) / (vmax - vmin) * (H - T - B); };
+    [60, 90, 120, 150, 180].forEach(function (v) {
+      if (v > vmax) return;
+      mk(svg, 'line', { x1: L, x2: W - R, y1: sy(v), y2: sy(v), stroke: 'var(--line)', 'stroke-width': 0.5 });
+      mk(svg, 'text', { x: L - 4, y: sy(v) + 3.5, 'text-anchor': 'end', 'font-size': 9.5, fill: 'var(--muted)' }, v);
+    });
+    if (stn && stn.score != null) {
+      var thr = stn.rest + 0.5 * (stn.max - stn.rest);
+      if (thr < vmax) mk(svg, 'rect', { x: L, y: sy(vmax), width: W - L - R, height: sy(thr) - sy(vmax), fill: 'var(--strain)', opacity: 0.08 });
+    }
+    for (var h = 0; h <= 24; h += 6) mk(svg, 'text', { x: sx(day0 + h * 60), y: H - 5, 'text-anchor': h === 0 ? 'start' : h === 24 ? 'end' : 'middle', 'font-size': 9.5, fill: 'var(--muted)' }, pad(h % 24) + ':00');
+    var run = [], runs = [];
+    arr.forEach(function (x) { if (run.length && x.m - run[run.length - 1].m > 5) { runs.push(run); run = []; } run.push(x); });
+    if (run.length) runs.push(run);
+    runs.forEach(function (r) {
+      if (r.length < 2) return;
+      mk(svg, 'polyline', { points: r.map(function (x) { return sx(x.m).toFixed(1) + ',' + sy(x.v).toFixed(1); }).join(' '), fill: 'none', stroke: 'var(--strain)', 'stroke-width': 1, 'stroke-linejoin': 'round' });
+    });
+    scrub(svg, $('hrTip'), arr, sx, sy, W, function (x) { return hm(x.m) + '  ' + Math.round(x.v) + ' 次/分'; }, 15);
+  }
+  function scrub(svg, tip, arr, sx, sy, W, fmt, maxGap) {
+    var cursor = mk(svg, 'line', { y1: 6, y2: 130, stroke: 'var(--muted)', 'stroke-width': 0.6, visibility: 'hidden' });
+    var dot = mk(svg, 'circle', { r: 3, fill: 'var(--ink)', visibility: 'hidden' });
+    function hide() { cursor.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); tip.hidden = true; }
+    svg.onpointerdown = svg.onpointermove = function (evt) {
+      var rect = svg.getBoundingClientRect(), px = (evt.clientX - rect.left) / rect.width * W;
+      var best = null, bd = 1e9;
+      arr.forEach(function (x) { var d = Math.abs(sx(x.m) - px); if (d < bd) { bd = d; best = x; } });
+      if (!best || bd > maxGap) { hide(); return; }
+      var cx = sx(best.m), cy = sy(best.v);
+      cursor.setAttribute('x1', cx); cursor.setAttribute('x2', cx); cursor.setAttribute('visibility', 'visible');
+      dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('visibility', 'visible');
+      tip.hidden = false; tip.textContent = fmt(best);
+      tip.style.left = clamp(cx / W * rect.width, 60, rect.width - 60) + 'px';
+    };
+    svg.onpointerleave = hide;
+  }
+
+  // ======================= trends =======================
+  function trendChart(svg, series, opt) {
+    svg.innerHTML = '';
+    var W = 360, H = 130, L = 30, R = 10, T = 8, B = 18;
+    var days = D.days.slice(-30), n = days.length;
+    var vals = [];
+    series.forEach(function (s) { days.forEach(function (k) { var v = s.get(k); if (v != null) vals.push(v); }); });
+    if (!vals.length) { mk(svg, 'text', { x: W / 2, y: H / 2, 'text-anchor': 'middle', 'font-size': 12, fill: 'var(--muted)' }, '暂无数据'); return; }
+    var lo = opt.min != null ? opt.min : Math.floor(Math.min.apply(null, vals) * 0.95);
+    var hi = opt.max != null ? opt.max : Math.ceil(Math.max.apply(null, vals) * 1.05);
+    if (hi === lo) hi = lo + 1;
+    var bw = (W - L - R) / n;
+    var sx = function (i) { return L + bw * i + bw / 2; };
+    var sy = function (v) { return T + (hi - v) / (hi - lo) * (H - T - B); };
+    [lo, (lo + hi) / 2, hi].forEach(function (v) {
+      mk(svg, 'line', { x1: L, x2: W - R, y1: sy(v), y2: sy(v), stroke: 'var(--line)', 'stroke-width': 0.5 });
+      mk(svg, 'text', { x: L - 4, y: sy(v) + 3.5, 'text-anchor': 'end', 'font-size': 9.5, fill: 'var(--muted)' }, Math.round(v));
+    });
+    if (opt.band) {
+      var pts = [], pts2 = [];
+      days.forEach(function (k, i) { var b = baseline(opt.band, k); if (b) { pts.push([sx(i), sy(b.mean + b.sd)]); pts2.unshift([sx(i), sy(b.mean - b.sd)]); } });
+      if (pts.length > 1) mk(svg, 'polygon', { points: pts.concat(pts2).map(function (p) { return p[0].toFixed(1) + ',' + p[1].toFixed(1); }).join(' '), fill: 'var(--accent)', opacity: 0.12 });
+    }
+    series.forEach(function (s) {
+      if (s.bars) {
+        days.forEach(function (k, i) { var v = s.get(k); if (v == null) return;
+          mk(svg, 'rect', { x: sx(i) - bw * 0.35, y: sy(v), width: bw * 0.7, height: Math.max(1, sy(lo) - sy(v)), rx: 2, fill: s.color(v) }); });
+      } else {
+        var seg = [];
+        var flush = function () { if (seg.length > 1) mk(svg, 'polyline', { points: seg.join(' '), fill: 'none', stroke: s.color(), 'stroke-width': 1.6, 'stroke-linejoin': 'round' }); seg = []; };
+        days.forEach(function (k, i) { var v = s.get(k); if (v == null) { flush(); return; } seg.push(sx(i).toFixed(1) + ',' + sy(v).toFixed(1)); mk(svg, 'circle', { cx: sx(i), cy: sy(v), r: 2, fill: s.color() }); });
+        flush();
+      }
+    });
+    [0, Math.floor(n / 2), n - 1].forEach(function (i) {
+      mk(svg, 'text', { x: sx(i), y: H - 4, 'text-anchor': i === 0 ? 'start' : i === n - 1 ? 'end' : 'middle', 'font-size': 9.5, fill: 'var(--muted)' }, shortDay(days[i]));
+    });
+  }
+  function drawTrends() {
+    if (!D) return;
+    var cache = {};
+    var memo = function (fn, k) { var id = fn.name + k; if (!(id in cache)) cache[id] = fn(k).score; return cache[id]; };
+    trendChart($('tRec'), [{ bars: true, get: function (k) { return memo(recovery, k); }, color: recColor }], { min: 0, max: 100 });
+    trendChart($('tSleep'), [
+      { get: function (k) { return memo(sleepScore, k); }, color: function () { return 'var(--sleep)'; } },
+      { get: function (k) { return D.sleep[k] ? D.sleep[k].asleep / 60 * 10 : null; }, color: function () { return 'var(--muted)'; } }
+    ], { min: 0, max: 100 });
+    trendChart($('tStrain'), [{ bars: true, get: function (k) { return memo(strain, k); }, color: function () { return 'var(--strain)'; } }], { min: 0, max: 21 });
+    trendChart($('tHrv'), [{ get: function (k) { return D.hrv[k]; }, color: function () { return 'var(--accent)'; } }], { band: D.hrv });
+    trendChart($('tRhr'), [{ get: function (k) { return D.rhr[k]; }, color: function () { return 'var(--rec-lo)'; } }], {});
+  }
+
+  // ======================= SpO2 tab =======================
+  var spo2Loaded = false;
+  async function loadSpo2() {
+    if (spo2Loaded) return;
+    $('spo2Status').hidden = false; $('spo2Detail').hidden = true; $('spo2List').innerHTML = '';
+    $('spo2StatusText').className = 'msg'; $('spo2StatusText').textContent = '正在读取最近 14 天的逐分钟血氧……';
+    try {
+      var now = new Date(), start = new Date(now.getTime() - 14 * 86400000);
+      var civil = function (d) { return ymd(d) + 'T' + pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':00'; };
+      var pts = await list('oxygen-saturation', 'oxygen_saturation.sample_time.civil_time >= "' + civil(start) + '" AND oxygen_saturation.sample_time.civil_time < "' + civil(new Date(now.getTime() + 3600000)) + '"', 10000);
+      var map = new Map();
+      pts.forEach(function (p) { var o = p.oxygenSaturation; if (!o || !o.sampleTime || o.percentage == null) return; map.set(localMin(o.sampleTime.physicalTime, o.sampleTime.utcOffset || '0s'), +o.percentage); });
+      var samples = Array.from(map.entries()).sort(function (a, b) { return a[0] - b[0]; }).map(function (e) { return { m: e[0], v: e[1] }; });
+      if (!samples.length) { $('spo2StatusText').textContent = '最近 14 天没有血氧数据。'; return; }
+      var sessions = [], cur = [];
+      samples.forEach(function (s) { if (cur.length && s.m - cur[cur.length - 1].m > 180) { sessions.push(cur); cur = []; } cur.push(s); });
+      if (cur.length) sessions.push(cur);
+      sessions = sessions.filter(function (r) { return r.length >= 10; }).map(spo2Summary).sort(function (a, b) { return b.first - a.first; });
+      spo2Loaded = true;
+      $('spo2Status').hidden = true; $('spo2Detail').hidden = false;
+      var listEl = $('spo2List');
+      sessions.forEach(function (n) {
+        var b = document.createElement('button'); b.type = 'button'; b.className = 'row'; b.dataset.key = n.first;
+        b.innerHTML = '<span class="d"></span><span class="n"></span><span class="n"></span><span class="n"></span>';
+        b.children[0].innerHTML = sessLabel(n) + '<small>' + sessRange(n) + '</small>';
+        b.children[1].innerHTML = '<span class="' + cls(n.avg, 'avg') + '">' + n.avg.toFixed(1) + '%</span><small>平均</small>';
+        b.children[2].innerHTML = '<span class="' + cls(n.min, 'min') + '">' + n.min.toFixed(1) + '%</span><small>最低</small>';
+        b.children[3].innerHTML = '<span class="' + cls(n.lowP, 'p') + '">' + n.lowN + '</span><small>&lt;90% 分钟</small>';
+        b.addEventListener('click', function () { drawSpo2(n); window.scrollTo({ top: 0, behavior: 'smooth' }); });
+        listEl.appendChild(b);
+      });
+      drawSpo2(sessions[0]);
+    } catch (e) {
+      if (e.auth) { signOut(); return; }
+      $('spo2StatusText').className = 'err'; $('spo2StatusText').textContent = e.message;
+    }
+  }
+  function spo2Summary(rows) {
+    var vals = rows.map(function (r) { return r.v; });
+    var minRow = rows.reduce(function (a, b) { return b.v < a.v ? b : a; });
+    var low = rows.filter(function (r) { return r.v < 90; });
+    var eps = [], cur = [];
+    low.forEach(function (r) { if (cur.length && r.m - cur[cur.length - 1].m > 3) { eps.push(cur); cur = []; } cur.push(r); });
+    if (cur.length) eps.push(cur);
+    return { rows: rows, n: rows.length, avg: mean(vals), min: minRow.v, minAt: minRow.m, lowN: low.length, lowP: 100 * low.length / rows.length,
+      first: rows[0].m, last: rows[rows.length - 1].m,
+      eps: eps.map(function (e) { return { s: e[0].m, e: e[e.length - 1].m, min: Math.min.apply(null, e.map(function (r) { return r.v; })) }; }) };
+  }
+  function sessLabel(n) { var d = new Date(n.first * 60000); return (d.getUTCMonth() + 1) + '月' + d.getUTCDate() + '日 周' + WD[d.getUTCDay()] + (d.getUTCHours() >= 18 ? ' 晚' : ''); }
+  function sessRange(n) { return hm(n.first) + '–' + (Math.floor(n.first / 1440) === Math.floor(n.last / 1440) ? '' : '次日 ') + hm(n.last); }
+  function cls(v, kind) {
+    if (kind === 'avg') return v >= 95 ? 'ok' : v >= 92 ? 'warn' : 'bad';
+    if (kind === 'min') return v >= 90 ? 'ok' : v >= 85 ? 'warn' : 'bad';
+    return v < 1 ? 'ok' : v < 5 ? 'warn' : 'bad';
+  }
+  function drawSpo2(n) {
+    var svg = $('spo2Chart'); svg.innerHTML = '';
     var W = 360, H = 200, L = 34, R = 16, T = 8, B = 22;
     var x0 = Math.floor((n.first - 15) / 60) * 60, x1 = Math.ceil((n.last + 15) / 60) * 60;
     var lo = Math.min(84, Math.floor(n.min) - 1), hi = 100;
@@ -288,149 +780,86 @@ select { font: inherit; font-size: 14px; padding: 8px 10px; border-radius: 10px;
       mk(svg, 'line', { x1: L, x2: W - R, y1: sy(v), y2: sy(v), stroke: 'var(--line)', 'stroke-width': 0.6 });
       mk(svg, 'text', { x: L - 4, y: sy(v) + 3.5, 'text-anchor': 'end', 'font-size': 9.5, fill: 'var(--muted)' }, v + '%');
     }
-    var span = x1 - x0;
-    var step = span > 960 ? 240 : span > 480 ? 120 : 60;
+    var span = x1 - x0, step = span > 960 ? 240 : span > 480 ? 120 : 60;
     for (var t = x0; t <= x1; t += step) mk(svg, 'text', { x: sx(t), y: H - 6, 'text-anchor': t + step > x1 ? 'end' : 'middle', 'font-size': 9.5, fill: 'var(--muted)' }, hm(t));
-    mk(svg, 'line', { x1: L, x2: W - R, y1: sy(LOW), y2: sy(LOW), stroke: 'var(--low)', 'stroke-width': 0.8, 'stroke-dasharray': '4 3' });
-
+    mk(svg, 'line', { x1: L, x2: W - R, y1: sy(90), y2: sy(90), stroke: 'var(--low)', 'stroke-width': 0.8, 'stroke-dasharray': '4 3' });
     var runs = [], run = [];
-    n.rows.forEach(function (r) {
-      if (run.length && r.m - run[run.length - 1].m > 3) { runs.push(run); run = []; }
-      run.push(r);
-    });
+    n.rows.forEach(function (r) { if (run.length && r.m - run[run.length - 1].m > 3) { runs.push(run); run = []; } run.push(r); });
     if (run.length) runs.push(run);
     var poly = function (arr, color, w) {
       if (arr.length === 1) { mk(svg, 'circle', { cx: sx(arr[0].m), cy: sy(arr[0].v), r: 1.4, fill: color }); return; }
-      mk(svg, 'polyline', { points: arr.map(function (r) { return sx(r.m).toFixed(1) + ',' + sy(r.v).toFixed(1); }).join(' '),
-        fill: 'none', stroke: color, 'stroke-width': w, 'stroke-linejoin': 'round', 'stroke-linecap': 'round' });
+      mk(svg, 'polyline', { points: arr.map(function (r) { return sx(r.m).toFixed(1) + ',' + sy(r.v).toFixed(1); }).join(' '), fill: 'none', stroke: color, 'stroke-width': w, 'stroke-linejoin': 'round' });
     };
-    runs.forEach(function (r) { poly(r, 'var(--night)', 1.1); });
+    runs.forEach(function (r) { poly(r, 'var(--accent)', 1.1); });
     runs.forEach(function (r) {
       for (var i = 0; i < r.length; i++) {
-        if (r[i].v >= LOW) continue;
-        var j = i; while (j + 1 < r.length && r[j + 1].v < LOW) j++;
-        poly(r.slice(Math.max(0, i - 1), Math.min(r.length, j + 2)), 'var(--low)', 1.8);
-        i = j;
+        if (r[i].v >= 90) continue;
+        var j = i; while (j + 1 < r.length && r[j + 1].v < 90) j++;
+        poly(r.slice(Math.max(0, i - 1), Math.min(r.length, j + 2)), 'var(--low)', 1.8); i = j;
       }
     });
-    var cursor = mk(svg, 'line', { y1: T, y2: H - B, stroke: 'var(--muted)', 'stroke-width': 0.6, visibility: 'hidden' });
-    var dot = mk(svg, 'circle', { r: 3, fill: 'var(--ink)', visibility: 'hidden' });
-
-    // scrub to read values
-    var box = $('chartBox'), tip = $('tip');
-    function at(evt) {
-      var rect = svg.getBoundingClientRect();
-      var px = (evt.clientX - rect.left) / rect.width * W;
-      var m = x0 + (px - L) / (W - L - R) * (x1 - x0);
-      var best = null, bd = 1e9;
-      n.rows.forEach(function (r) { var d = Math.abs(r.m - m); if (d < bd) { bd = d; best = r; } });
-      if (!best || bd > 10) { cursor.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); tip.hidden = true; return; }
-      var cx = sx(best.m), cy = sy(best.v);
-      cursor.setAttribute('x1', cx); cursor.setAttribute('x2', cx); cursor.setAttribute('visibility', 'visible');
-      dot.setAttribute('cx', cx); dot.setAttribute('cy', cy); dot.setAttribute('visibility', 'visible');
-      tip.hidden = false; tip.textContent = hm(best.m) + '  ' + best.v.toFixed(1) + '%';
-      tip.style.left = Math.max(40, Math.min(rect.width - 40, cx / W * rect.width)) + 'px';
-    }
-    svg.onpointerdown = svg.onpointermove = at;
-    svg.onpointerleave = function () { cursor.setAttribute('visibility', 'hidden'); dot.setAttribute('visibility', 'hidden'); tip.hidden = true; };
-
-    $('dTitle').textContent = sessionLabel(n);
-    $('dRange').textContent = rangeLabel(n) + ' · ' + n.n + ' 个读数';
+    scrub(svg, $('spo2Tip'), n.rows, sx, sy, W, function (x) { return hm(x.m) + '  ' + x.v.toFixed(1) + '%'; }, 10);
+    $('sTitle').textContent = sessLabel(n);
+    $('sRange').textContent = sessRange(n) + ' · ' + n.n + ' 个读数';
+    var setV = function (id, t, c) { $(id).textContent = t; $(id).className = 'v ' + (c || ''); };
     setV('sAvg', n.avg.toFixed(1) + '%', cls(n.avg, 'avg'));
     $('sMinK').textContent = '最低 ' + hm(n.minAt);
     setV('sMin', n.min.toFixed(1) + '%', cls(n.min, 'min'));
-    setV('sLowN', String(n.lowN));
-    setV('sLowP', n.lowP.toFixed(1) + '%', cls(n.lowP, 'p'));
-    if (n.eps.length) {
-      var top = n.eps.slice().sort(function (a, b) { return a.min - b.min; }).slice(0, 5)
-        .sort(function (a, b) { return a.s - b.s; });
-      $('episodes').textContent = '低于 90% 的时段：' + top.map(function (e) {
-        return hm(e.s) + '–' + hm(e.e) + '（最低 ' + e.min.toFixed(1) + '%）';
-      }).join('；');
-    } else {
-      $('episodes').textContent = '整晚没有低于 90% 的有效读数。';
-    }
-    Array.prototype.forEach.call(document.querySelectorAll('.row'), function (b) {
-      b.setAttribute('aria-pressed', b.dataset.key === n.key ? 'true' : 'false');
-    });
+    setV('sLowN', String(n.lowN)); setV('sLowP', n.lowP.toFixed(1) + '%', cls(n.lowP, 'p'));
+    $('episodes').textContent = n.eps.length ? '低于 90% 的时段：' + n.eps.slice().sort(function (a, b) { return a.min - b.min; }).slice(0, 5).sort(function (a, b) { return a.s - b.s; })
+      .map(function (e) { return hm(e.s) + '–' + hm(e.e) + '（最低 ' + e.min.toFixed(1) + '%）'; }).join('；') : '没有低于 90% 的有效读数。';
+    Array.prototype.forEach.call(document.querySelectorAll('#spo2List .row'), function (b) { b.setAttribute('aria-pressed', +b.dataset.key === n.first ? 'true' : 'false'); });
   }
 
-  // ---------- trend ----------
-  function drawTrend(nights) {
-    var svg = $('trend'); svg.innerHTML = '';
-    var data = nights.slice().reverse();
-    var W = 360, H = 120, L = 30, R = 16, T = 8, B = 18;
-    var lo = Math.min(84, Math.floor(Math.min.apply(null, data.map(function (n) { return n.min; }))) - 1), hi = 100;
-    var sx = function (i) { return data.length === 1 ? (L + W - R) / 2 : L + i / (data.length - 1) * (W - L - R); };
-    var sy = function (v) { return T + (hi - v) / (hi - lo) * (H - T - B); };
-    [hi, LOW, lo].forEach(function (v) {
-      mk(svg, 'text', { x: L - 4, y: sy(v) + 3.5, 'text-anchor': 'end', 'font-size': 9, fill: 'var(--muted)' }, v + '%');
-    });
-    mk(svg, 'line', { x1: L, x2: W - R, y1: sy(LOW), y2: sy(LOW), stroke: 'var(--muted)', 'stroke-width': 0.7, 'stroke-dasharray': '4 3' });
-    var line = function (key, color) {
-      mk(svg, 'polyline', { points: data.map(function (n, i) { return sx(i).toFixed(1) + ',' + sy(n[key]).toFixed(1); }).join(' '),
-        fill: 'none', stroke: color, 'stroke-width': 1.6, 'stroke-linejoin': 'round' });
-      data.forEach(function (n, i) { mk(svg, 'circle', { cx: sx(i), cy: sy(n[key]), r: 2.4, fill: color }); });
-    };
-    line('avg', 'var(--night)'); line('min', 'var(--low)');
-    var every = Math.ceil(data.length / 7);
-    data.forEach(function (n, i) {
-      if (i % every !== 0 && i !== data.length - 1) return;
-      var d = new Date(n.first * 60000);
-      mk(svg, 'text', { x: sx(i), y: H - 4, 'text-anchor': 'middle', 'font-size': 9, fill: 'var(--muted)' }, (d.getUTCMonth() + 1) + '/' + d.getUTCDate());
-    });
-  }
-
-  // ---------- list ----------
-  function drawList(nights) {
-    var list = $('list'); list.innerHTML = '';
-    nights.forEach(function (n) {
-      var b = document.createElement('button');
-      b.type = 'button'; b.className = 'row'; b.dataset.key = n.key;
-      b.innerHTML = '<span class="d"></span><span class="n"></span><span class="n"></span><span class="n"></span>';
-      var c = b.children;
-      c[0].innerHTML = sessionLabel(n) + '<small>' + rangeLabel(n) + '</small>';
-      c[1].innerHTML = '<span class="' + cls(n.avg, 'avg') + '">' + n.avg.toFixed(1) + '%</span><small>平均</small>';
-      c[2].innerHTML = '<span class="' + cls(n.min, 'min') + '">' + n.min.toFixed(1) + '%</span><small>最低</small>';
-      c[3].innerHTML = '<span class="' + cls(n.lowP, 'p') + '">' + n.lowN + '</span><small>&lt;90% 分钟</small>';
-      b.addEventListener('click', function () { drawNight(n); window.scrollTo({ top: 0, behavior: 'smooth' }); });
-      list.appendChild(b);
-    });
-  }
-
-  // ---------- main ----------
+  // ======================= main =======================
   async function load() {
-    var tok = token();
-    if (!tok) { showLogin(); return; }
-    $('controls').hidden = false;
-    var days = parseInt($('days').value, 10);
-    showStatus('正在读取最近 ' + days + ' 晚的血氧数据……');
-    var now = new Date();
-    var end = new Date(now.getTime() + 3600000);
-    var start = new Date(now.getFullYear(), now.getMonth(), now.getDate() - days, NIGHT_START, 0, 0);
+    if (!token()) { showLogin(sget('hb_scope') ? '新增了睡眠和步数读取，需要重新登录授权一次。' : null); return; }
+    showStatus('正在读取……');
     try {
-      var pts = await fetchAll(tok, start, end);
-      var samples = parse(pts);
-      if (!samples.length) { showError('这段时间没有血氧数据。\n请确认晚上戴着手环睡觉，并且早上已在 Google Health App 里同步。'); return; }
-      var nights = groupNights(samples);
-      hideAll();
-      ['detail', 'trendCard', 'list', 'foot'].forEach(function (id) { $(id).hidden = false; });
-      drawList(nights); drawTrend(nights); drawNight(nights[0]);
-      $('sub').textContent = '更新于 ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ' · ' + samples.length + ' 个读数';
+      D = await loadAll();
+      hideMain();
+      $('tabbar').hidden = false; $('foot').hidden = false; $('refresh').hidden = false;
+      // pick the latest day that has something to show
+      selDay = D.today;
+      if (!D.hrv[selDay] && !D.sleep[selDay] && !(D.hr[selDay] || []).length) {
+        for (var i = D.days.length - 1; i >= 0; i--) { var k = D.days[i]; if (D.hrv[k] || D.sleep[k] || (D.hr[k] || []).length > 60) { selDay = k; break; } }
+      }
+      spo2Loaded = false;
+      var now = new Date();
+      $('sub').textContent = '更新于 ' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ' · Fitbit Air';
+      drawToday();
+      showTab(TABS.indexOf(sget('hb_tab')) >= 0 ? sget('hb_tab') : 'today');
     } catch (e) {
-      if (e.auth) { sdel('spo2_token'); showLogin(); return; }
+      if (e.auth) { sdel('hb_token'); showLogin('登录已过期或需要新的授权，请重新登录。'); return; }
       showError(e.message);
     }
   }
 
+  // wire up
   $('signin').addEventListener('click', signIn);
   $('refresh').addEventListener('click', load);
-  $('days').addEventListener('change', function () { sset('spo2_days', $('days').value); load(); });
-  $('signout').addEventListener('click', function (e) { e.preventDefault(); signOut(); });
-  var savedDays = sget('spo2_days'); if (savedDays) $('days').value = savedDays;
-  readHash();
-  if ($('status').hidden || !$('statusText').classList.contains('err')) load();
-  window.__spo2 = { load: load, parse: parse, groupNights: groupNights };
+  $('signout').addEventListener('click', function () { $('settings').hidden = true; signOut(); });
+  $('gear').addEventListener('click', function () {
+    $('settings').hidden = !$('settings').hidden;
+    $('age').value = sget('hb_age') || ''; $('need').value = sget('hb_need') || '8';
+  });
+  $('saveSettings').addEventListener('click', function () {
+    var age = num($('age').value), need = num($('need').value);
+    if (age) sset('hb_age', String(age)); else sdel('hb_age');
+    if (need) sset('hb_need', String(need));
+    $('settings').hidden = true;
+    if (D) { drawToday(); if (currentTab === 'trends') drawTrends(); }
+  });
+  $('prevDay').addEventListener('click', function () { selDay = addDays(selDay, -1); drawToday(); });
+  $('nextDay').addEventListener('click', function () { selDay = addDays(selDay, 1); drawToday(); });
+  Array.prototype.forEach.call(document.querySelectorAll('.tabbar button'), function (b) {
+    b.addEventListener('click', function () { showTab(b.dataset.tab); });
+  });
+  // clean up the old SpO2-only app's keys
+  ['spo2_token', 'spo2_exp', 'spo2_state', 'spo2_days'].forEach(sdel);
+
+  if (readHash()) load();
+  window.__hb = { recovery: recovery, sleepScore: sleepScore, strain: strain, data: function () { return D; } };
 })();
 </script>
 </body>
