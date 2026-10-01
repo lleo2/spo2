@@ -1,6 +1,6 @@
 {
-  "name": "夜间血氧",
-  "short_name": "血氧",
+  "name": "健康看板",
+  "short_name": "健康",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
